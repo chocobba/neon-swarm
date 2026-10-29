@@ -1,0 +1,13 @@
+{
+  "name": "neon-swarm",
+  "version": "1.0.0",
+  "description": "네온 스웜 — 의존성 없는 바닐라 JS 레트로 아케이드 슈팅 게임",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "test": "node --test",
+    "test:e2e": "node tests/e2e-chrome.mjs",
+    "check": "node --check js/logic.js && node --check js/sprites.js && node --check js/audio.js && node --check js/game.js && node --check js/main.js"
+  }
+}

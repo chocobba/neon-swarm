@@ -1,0 +1,787 @@
+/* NEON SWARM — 레트로 네온 아케이드 스타일 (외부 폰트/이미지 없음) */
+
+/* ── 디자인 토큰 ── */
+:root {
+  --bg: #04061a;
+  --surface: rgba(12, 17, 44, 0.74);
+  --surface-hi: rgba(20, 27, 64, 0.9);
+  --line: rgba(130, 150, 255, 0.18);
+  --line-strong: rgba(130, 150, 255, 0.34);
+
+  --cyan: #3cf0ff;
+  --magenta: #ff3cac;
+  --yellow: #ffd86b;
+  --green: #3cff9a;
+
+  --text: #eef1ff;
+  --muted: #a3acd4;
+  --faint: #7f8ab8;
+
+  --r-sm: 5px;
+  --r: 10px;
+  --r-lg: 16px;
+
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, "DejaVu Sans Mono", monospace;
+  --sans: system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", "Segoe UI", sans-serif;
+
+  --screen-w: 480px;
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background:
+    radial-gradient(ellipse 80% 45% at 50% -8%, rgba(60, 240, 255, 0.08), transparent 70%),
+    radial-gradient(ellipse 70% 40% at 50% 108%, rgba(255, 60, 172, 0.07), transparent 70%),
+    var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+}
+
+/* ── 상단 바: 게임 화면 폭에 정렬 ── */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: min(100% - 24px, max(var(--screen-w), 340px));
+  margin: 0 auto;
+  padding: 12px 0 8px;
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.brand-en {
+  font: 800 17px/1 var(--mono);
+  letter-spacing: 0.2em;
+  color: var(--cyan);
+  text-shadow: 0 0 12px rgba(60, 240, 255, 0.45);
+}
+
+.brand-ko {
+  font: 600 12px/1 var(--sans);
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.topbar-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 12px;
+  font: 600 13px/1 var(--sans);
+  white-space: nowrap;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.icon-btn svg {
+  color: var(--cyan);
+  flex-shrink: 0;
+}
+
+.icon-btn:hover:not(:disabled) {
+  background: var(--surface-hi);
+  border-color: var(--line-strong);
+}
+
+.icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.icon-btn[aria-pressed="true"] {
+  border-color: rgba(255, 60, 172, 0.55);
+  background: rgba(255, 60, 172, 0.12);
+}
+
+.icon-btn[aria-pressed="true"] svg {
+  color: var(--magenta);
+}
+
+#btn-mute .icon-x,
+#btn-mute[aria-pressed="true"] .icon-wave {
+  display: none;
+}
+
+#btn-mute[aria-pressed="true"] .icon-x {
+  display: inline;
+}
+
+/* ── 게임 화면 프레임 ── */
+.stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px 8px;
+}
+
+.screen {
+  --scale: 1;
+  position: relative;
+  width: 480px;
+  height: 640px;
+  overflow: hidden;
+  container-type: size;
+  container-name: screen;
+  background: #03051a;
+  border: 1px solid rgba(60, 240, 255, 0.3);
+  border-radius: var(--r-lg);
+  box-shadow:
+    0 0 36px rgba(60, 240, 255, 0.1),
+    0 24px 60px rgba(0, 0, 0, 0.55);
+}
+
+.screen canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  outline: none;
+}
+
+/* 캔버스 키보드 포커스 표시 */
+.screen:has(canvas:focus-visible) {
+  outline: 2px solid rgba(60, 240, 255, 0.85);
+  outline-offset: 3px;
+}
+
+/* 은은한 CRT 스캔라인 + 비네팅 (한 겹) */
+.screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    repeating-linear-gradient(to bottom, transparent 0 3px, rgba(0, 0, 0, 0.12) 3px 4px),
+    radial-gradient(ellipse at center, transparent 68%, rgba(0, 0, 0, 0.38) 100%);
+}
+
+/* ── 오버레이(메뉴) ── */
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  padding: 6%;
+  overflow-y: auto;
+  text-align: center;
+  font-size: clamp(11px, calc(14.5px * var(--scale)), 18px);
+  line-height: 1.5;
+  background: rgba(3, 5, 22, 0.8);
+}
+
+.overlay[hidden] {
+  display: none;
+}
+
+/* 플레이 화면 위에 뜨는 메뉴는 조금 더 어둡게 — 편대가 글자와 겹쳐 보이지 않도록 */
+#overlay-pause,
+#overlay-gameover {
+  background: rgba(3, 5, 22, 0.87);
+}
+
+.panel {
+  /* margin:auto — 공간이 있으면 가운데, 넘치면 위에서부터 스크롤 */
+  margin: auto;
+  width: 100%;
+  max-width: 23em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.1em;
+}
+
+.title-panel {
+  gap: 1.3em;
+}
+
+.panel p {
+  margin: 0;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+
+/* 타이틀 */
+.title-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55em;
+}
+
+.eyebrow {
+  font: 700 0.72em/1 var(--sans);
+  letter-spacing: 0.16em;
+  color: var(--magenta);
+}
+
+.logo {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.32em;
+  font: 800 2.6em/1 var(--mono);
+  letter-spacing: 0.06em;
+  color: #fff;
+  text-shadow: 0 0 18px rgba(60, 240, 255, 0.55);
+}
+
+.logo-ko {
+  font: 700 0.36em/1 var(--sans);
+  letter-spacing: 0.3em;
+  margin-right: -0.3em; /* 자간으로 생기는 오른쪽 여백 보정 */
+  color: var(--magenta);
+  text-shadow: none;
+}
+
+.tagline {
+  color: var(--muted);
+}
+
+.info-card {
+  width: 100%;
+  padding: 1em 1.1em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85em;
+  text-align: left;
+}
+
+.controls-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6em 1em;
+}
+
+.controls-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.55em;
+  min-width: 0;
+}
+
+.keys {
+  display: inline-flex;
+  gap: 0.25em;
+  flex-shrink: 0;
+}
+
+.action {
+  color: var(--muted);
+  font-size: 0.92em;
+  white-space: nowrap;
+}
+
+.touch-row {
+  grid-column: 1 / -1;
+}
+
+.touch-row .action {
+  white-space: normal;
+}
+
+.score-table {
+  list-style: none;
+  margin: 0;
+  padding: 0.85em 0 0;
+  border-top: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  justify-content: space-between;
+  gap: 0.4em 0.6em;
+}
+
+.score-table li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  white-space: nowrap;
+}
+
+.score-table b {
+  font: 700 1em/1 var(--mono);
+  color: #fff;
+}
+
+.swatch {
+  display: inline-block;
+  width: 0.6em;
+  height: 0.6em;
+  border-radius: 2px;
+}
+
+.swatch-drone { background: var(--cyan); box-shadow: 0 0 6px rgba(60, 240, 255, 0.6); }
+.swatch-stinger { background: var(--magenta); box-shadow: 0 0 6px rgba(255, 60, 172, 0.6); }
+.swatch-warden { background: #ffd23c; box-shadow: 0 0 6px rgba(255, 210, 60, 0.6); }
+
+.fine {
+  font-size: 0.8em;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.green {
+  color: var(--green);
+}
+
+.title-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7em;
+  width: 100%;
+}
+
+.best {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6em;
+  font-size: 0.9em;
+  color: var(--muted);
+}
+
+.best strong {
+  font: 700 1.3em/1 var(--mono);
+  letter-spacing: 0.06em;
+  color: var(--yellow);
+}
+
+.hint {
+  font-size: 0.78em;
+  color: var(--faint);
+}
+
+kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.8em;
+  height: 1.7em;
+  padding: 0 0.4em;
+  font: 600 0.8em/1 var(--mono);
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--line-strong);
+  border-bottom-width: 2px;
+  border-radius: var(--r-sm);
+}
+
+/* 버튼 */
+.btn {
+  min-height: 44px;
+  min-width: 9em;
+  padding: 0.75em 1.6em;
+  font: 700 1em/1 var(--sans);
+  letter-spacing: 0.04em;
+  border: 1px solid transparent;
+  border-radius: var(--r);
+  cursor: pointer;
+  transition: filter 0.15s, background 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn-primary {
+  color: #021018;
+  background: linear-gradient(180deg, #7ff6ff, #2fd6ee);
+  box-shadow: 0 0 0 1px rgba(60, 240, 255, 0.35), 0 8px 24px rgba(60, 240, 255, 0.25);
+}
+
+.btn-primary:hover {
+  filter: brightness(1.08);
+}
+
+.btn-ghost {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.03);
+  border-color: var(--line-strong);
+}
+
+.btn-ghost:hover {
+  background: rgba(255, 60, 172, 0.08);
+  border-color: rgba(255, 60, 172, 0.55);
+}
+
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75em;
+  width: 100%;
+}
+
+button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+
+/* 일시정지 / 게임 오버 */
+.overlay-title {
+  margin: 0;
+  font: 800 2em/1.15 var(--sans);
+  letter-spacing: 0.06em;
+  color: #fff;
+  text-shadow: 0 2px 14px rgba(3, 5, 22, 0.95), 0 0 16px rgba(60, 240, 255, 0.5);
+}
+
+.overlay-title.danger {
+  text-shadow: 0 2px 14px rgba(3, 5, 22, 0.95), 0 0 16px rgba(255, 60, 172, 0.65);
+}
+
+.overlay-desc {
+  color: var(--muted);
+}
+
+.new-record {
+  display: inline-flex;
+  padding: 0.35em 0.95em;
+  border-radius: 999px;
+  font: 800 0.85em/1.2 var(--sans);
+  letter-spacing: 0.06em;
+  color: #1a1300;
+  background: var(--yellow);
+  box-shadow: 0 0 18px rgba(255, 216, 107, 0.35);
+}
+
+.new-record[hidden] {
+  display: none;
+}
+
+.stats {
+  margin: 0;
+  width: 100%;
+  padding: 1em 1.1em;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.9em 0.6em;
+}
+
+.stats dt {
+  font-size: 0.75em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.stats dd {
+  margin: 0.2em 0 0;
+  font: 700 1.1em/1.2 var(--mono);
+  color: var(--text);
+}
+
+.stats .stat-main {
+  grid-column: 1 / -1;
+  padding-bottom: 0.8em;
+  border-bottom: 1px solid var(--line);
+}
+
+.stats .stat-main dd {
+  font-size: 2.2em;
+  color: var(--cyan);
+  text-shadow: 0 0 14px rgba(60, 240, 255, 0.35);
+}
+
+/* 화면이 낮을 때(가로 모드 휴대폰 등) 타이틀·결과를 간결하게 */
+@container screen (max-height: 470px) {
+  .eyebrow,
+  .tagline,
+  .fine,
+  .controls-list,
+  .hint {
+    display: none !important;
+  }
+  .title-panel {
+    gap: 1em;
+  }
+  .info-card {
+    padding: 0.7em 1em;
+  }
+  .score-table {
+    padding-top: 0;
+    border-top: 0;
+  }
+  .panel {
+    gap: 0.8em;
+  }
+  .stats {
+    padding: 0.7em 0.9em;
+    gap: 0.6em;
+  }
+  .stats .stat-main {
+    padding-bottom: 0.5em;
+  }
+  .stats .stat-main dd {
+    font-size: 1.7em;
+  }
+}
+
+/* ── 터치 조작 ── */
+.touch-controls {
+  display: none;
+  grid-template-columns: 1fr 1fr 1.5fr;
+  grid-template-areas: "left right fire";
+  gap: 10px;
+  width: min(100% - 24px, var(--screen-w));
+  margin: 0 auto;
+  padding: 6px 0 calc(12px + env(safe-area-inset-bottom));
+}
+
+.touch-btn[data-action="left"] { grid-area: left; }
+.touch-btn[data-action="right"] { grid-area: right; }
+.touch-btn[data-action="fire"] { grid-area: fire; }
+
+.touch-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 64px;
+  padding: 0;
+  font: 700 16px/1 var(--sans);
+  letter-spacing: 0.1em;
+  color: var(--cyan);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  transition: background 0.08s, border-color 0.08s, transform 0.08s;
+}
+
+.touch-btn.fire {
+  color: #fff;
+  background: linear-gradient(180deg, rgba(255, 60, 172, 0.3), rgba(255, 60, 172, 0.14));
+  border-color: rgba(255, 60, 172, 0.6);
+}
+
+.touch-btn.active {
+  background: rgba(60, 240, 255, 0.2);
+  border-color: rgba(60, 240, 255, 0.75);
+  transform: scale(0.97);
+}
+
+.touch-btn.fire.active {
+  background: rgba(255, 60, 172, 0.45);
+  border-color: var(--magenta);
+}
+
+.help {
+  margin: 0;
+  padding: 4px 12px 12px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--faint);
+}
+
+.help kbd {
+  font-size: 11px;
+  margin: 0 1px;
+}
+
+.help .sep {
+  margin: 0 0.4em;
+  opacity: 0.6;
+}
+
+/* 키보드/터치 전용 안내 전환 */
+.touch-only {
+  display: none !important;
+}
+
+@media (pointer: coarse) {
+  .touch-controls {
+    display: grid;
+  }
+  .help,
+  .keyboard-only {
+    display: none !important;
+  }
+  .touch-only {
+    display: flex !important;
+  }
+}
+
+body.touch-mode .touch-controls {
+  display: grid;
+}
+
+body.touch-mode .help,
+body.touch-mode .keyboard-only {
+  display: none !important;
+}
+
+body.touch-mode .touch-only {
+  display: flex !important;
+}
+
+/* 세로로 긴 화면: 남는 높이는 터치 버튼을 키우는 데 사용 */
+@media (max-aspect-ratio: 3/5) {
+  .touch-btn {
+    height: clamp(60px, 9vh, 84px);
+  }
+}
+
+/* 좁은 화면 또는 낮은 화면: 상단 버튼은 아이콘만 표시 */
+@media (max-width: 480px), (max-height: 520px) {
+  .icon-btn {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+  }
+  /* 글자는 시각적으로만 숨김(스크린 리더용 이름은 유지) */
+  .icon-btn .btn-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 359px) {
+  .brand-ko {
+    display: none;
+  }
+}
+
+/* 가로 모드 휴대폰: 버튼을 게임 화면 양옆 아래(엄지 위치)로 배치해 세로 공간 확보 */
+@media (orientation: landscape) and (max-height: 560px) {
+  /* 상단 바를 화면 위 모서리로 띄워 게임 화면이 전체 높이를 쓰도록 */
+  .topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 5;
+    width: auto;
+    margin: 0;
+    align-items: flex-start;
+    padding: calc(12px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
+    pointer-events: none;
+  }
+  .brand {
+    flex-direction: column;
+    gap: 6px;
+    padding-top: 4px;
+  }
+  .brand,
+  .topbar-actions {
+    pointer-events: auto;
+  }
+  .stage {
+    padding: 8px;
+  }
+  .touch-controls {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 5;
+    width: auto;
+    margin: 0;
+    padding: 0 max(16px, env(safe-area-inset-right)) calc(14px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+    grid-template-columns: 64px 64px 1fr 104px;
+    grid-template-areas: "left right . fire";
+    pointer-events: none;
+  }
+  .touch-btn {
+    pointer-events: auto;
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.noscript {
+  position: fixed;
+  inset: auto 0 0 0;
+  padding: 12px;
+  text-align: center;
+  background: var(--magenta);
+  color: #000;
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .btn,
+  .icon-btn,
+  .touch-btn,
+  .card {
+    border: 1px solid ButtonText;
+  }
+}
